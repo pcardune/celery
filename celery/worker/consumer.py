@@ -77,7 +77,7 @@ from celery.app import app_or_default
 from celery.datastructures import AttributeDict
 from celery.exceptions import NotRegistered
 from celery.utils import noop
-from celery.utils.encoding import safe_repr
+from celery.utils.encoding import safe_repr, safe_str
 from celery.utils import timer2
 from celery.worker import state
 from celery.worker.job import TaskRequest, InvalidTaskError
@@ -422,7 +422,8 @@ class Consumer(object):
         self.logger.critical("Can't decode message body: %r "
                              "(type:%r encoding:%r raw:%r')" % (
                                 exc, message.content_type,
-                                message.content_encoding, message.body))
+                                message.content_encoding,
+                                safe_str(message.body)))
         message.ack()
 
     def reset_pidbox_node(self):
