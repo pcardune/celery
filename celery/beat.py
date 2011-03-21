@@ -5,6 +5,8 @@ Periodic Task Scheduler
 """
 from __future__ import absolute_import
 
+import errno
+import os
 import time
 import shelve
 import sys
@@ -285,11 +287,28 @@ class PersistentScheduler(Scheduler):
         self.schedule_filename = kwargs.get("schedule_filename")
         Scheduler.__init__(self, *args, **kwargs)
 
+    def _remove_db(self):
+        for suffix in "", ".db", ".dat", ".bak", ".dir":
+            try:
+                os.remove(self.schedule_filename + suffix)
+            except OSError, exc:
+                if exc.errno != errno.ENOENT:
+                    raise
+
     def setup_schedule(self):
-        self._store = self.persistence.open(self.schedule_filename,
-                                            writeback=True)
-        if "__version__" not in self._store:
-            self._store.clear()   # remove schedule at 2.2.2 upgrade.
+        try:
+            self._store = self.persistence.open(self.schedule_filename,
+                                                writeback=True)
+            entries = self._store.setdefault("entries", {})
+        except Exception, exc:
+            self.logger.error("Removing corrupted schedule file %r: %r" % (
+                self.schedule_filename, exc))
+            self._remove_db()
+            self._store = self.persistence.open(self.schedule_filename,
+                                                writeback=True)
+        else:
+            if "__version__" not in self._store:
+                self._store.clear()   # remove schedule at 2.2.2 upgrade.
         entries = self._store.setdefault("entries", {})
         self.merge_inplace(self.app.conf.CELERYBEAT_SCHEDULE)
         self.install_default_entries(self.schedule)

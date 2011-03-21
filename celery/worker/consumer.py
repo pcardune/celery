@@ -43,7 +43,7 @@ up and running.
 * If the task has an ETA/countdown, the task is moved to the `eta_schedule`
   so the :class:`timer2.Timer` can schedule it at its
   deadline. Tasks without an eta are moved immediately to the `ready_queue`,
-  so they can be picked up by the :class:`~celery.worker.controllers.Mediator`
+  so they can be picked up by the :class:`~celery.worker.mediator.Mediator`
   to be sent to the pool.
 
 * When a task with an ETA is received the QoS prefetch count is also
@@ -256,21 +256,16 @@ class Consumer(object):
 
     def consume_messages(self):
         """Consume messages forever (or until an exception is raised)."""
-        try:
-            self.logger.debug("Consumer: Starting message consumer...")
-            self.task_consumer.consume()
-            self.logger.debug("Consumer: Ready to accept tasks!")
+        self.logger.debug("Consumer: Starting message consumer...")
+        self.task_consumer.consume()
+        self.logger.debug("Consumer: Ready to accept tasks!")
 
-            while 1:
-                if self.connection is None:
-                    return
-                if self.qos.prev != self.qos.value:
-                    self.qos.update()
-                self.connection.drain_events()
-        except Exception:
-            raise
-        except BaseException, exc:
-            raise SystemExit()
+        while 1:
+            if not self.connection:
+                break
+            if self.qos.prev != self.qos.value:
+                self.qos.update()
+            self.connection.drain_events()
 
     def on_task(self, task):
         """Handle received task.
@@ -433,7 +428,6 @@ class Consumer(object):
                 pass
 
         if self.pool.is_green:
-            print("USING GREENLET NODE")
             return self.pool.spawn_n(self._green_pidbox_node)
         self.pidbox_node.channel = self.connection.channel()
         self.broadcast_consumer = self.pidbox_node.listen(

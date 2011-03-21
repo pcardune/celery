@@ -10,6 +10,7 @@ from celery.bin.base import Command, Option, daemon_options
 
 
 class EvCommand(Command):
+    supports_args = False
 
     def run(self, dump=False, camera=None, frequency=1.0, maxrate=None,
             loglevel="INFO", logfile=None, prog_name="celeryev",

@@ -1,3 +1,4 @@
+import os
 import sys
 import traceback
 
@@ -33,17 +34,18 @@ class Autoscaler(object):
         return self.pool.grow(n)
 
     def scale_down(self, n):
-        if self._last_action or n:
-            now = time()
-            if now - self._last_action > self.keepalive:
-                self.logger.info("Scaling down %s processes." % n)
-                self._last_action = now
-                try:
-                    self.pool.shrink(n)
-                except Exception, exc:
-                    self.logger.error("Autoscaler: scale_down: %r\n%r" % (
-                                        exc, traceback.format_stack()),
-                                    exc_info=sys.exc_info())
+        if not self._last_action or not n:
+            return
+        now = time()
+        if now - self._last_action > self.keepalive:
+            self.logger.info("Scaling down %s processes." % n)
+            self._last_action = now
+            try:
+                self.pool.shrink(n)
+            except Exception, exc:
+                self.logger.error("Autoscaler: scale_down: %r\n%r" % (
+                                    exc, traceback.format_stack()),
+                                exc_info=sys.exc_info())
 
     def start(self):
         self.tref = self.timer.apply_interval(1000, self.scale)

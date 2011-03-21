@@ -3,6 +3,7 @@ from __future__ import with_statement
 
 import os
 import socket
+import threading
 import time
 
 from datetime import timedelta
@@ -69,6 +70,7 @@ class AMQPBackend(BaseDictBackend):
             self.queue_arguments["x-expires"] = self.expires * 1000.0
         self.connection_max = (connection_max or
                                conf.CELERY_AMQP_TASK_RESULT_CONNECTION_MAX)
+        self.mutex = threading.Lock()
 
     def _create_binding(self, task_id):
         name = task_id.replace("-", "")
@@ -106,15 +108,22 @@ class AMQPBackend(BaseDictBackend):
             max_retries=20, interval_start=0, interval_step=1,
             interval_max=1):
         """Send task return value and status."""
-        with self.pool.acquire(block=True) as conn:
-            send = conn.ensure(self, self._publish_result,
-                        max_retries=max_retries,
-                        interval_start=interval_start,
-                        interval_step=interval_step,
-                        interval_max=interval_max)
-            send(conn, task_id, {"task_id": task_id, "status": status,
-                                 "result": self.encode_result(result, status),
-                                 "traceback": traceback})
+        def errback(error, delay):
+            conn._result_producer_chan = None
+            print("Couldn't send result for %r: %r. Retry in %rs." % (
+                        task_id, error, delay))
+
+        with self.mutex:
+            with self.pool.acquire(block=True) as conn:
+                send = conn.ensure(self, self._publish_result,
+                            max_retries=max_retries,
+                            errback=errback,
+                            interval_start=interval_start,
+                            interval_step=interval_step,
+                            interval_max=interval_max)
+                send(conn, task_id, {"task_id": task_id, "status": status,
+                                "result": self.encode_result(result, status),
+                                "traceback": traceback})
         return result
 
     def get_task_meta(self, task_id, cache=True):

@@ -511,7 +511,8 @@ class TaskRequest(object):
                 "hostname": self.hostname,
                 "time_start": self.time_start,
                 "acknowledged": self.acknowledged,
-                "delivery_info": self.delivery_info}
+                "delivery_info": self.delivery_info,
+                "worker_pid": self.worker_pid}
 
     def shortinfo(self):
         return "%s[%s]%s%s" % (self.task_name, self.task_id,
