@@ -1,3 +1,5 @@
+from __future__ import absolute_import, with_statement
+
 import time
 import heapq
 
@@ -162,20 +164,15 @@ class State(object):
 
     def freeze_while(self, fun, *args, **kwargs):
         clear_after = kwargs.pop("clear_after", False)
-        self._mutex.acquire()
-        try:
-            return fun(*args, **kwargs)
-        finally:
+        with self._mutex:
+            ret = fun(*args, **kwargs)
             if clear_after:
                 self._clear()
-            self._mutex.release()
+            return ret
 
     def clear_tasks(self, ready=True):
-        self._mutex.acquire()
-        try:
+        with self._mutex:
             return self._clear_tasks(ready)
-        finally:
-            self._mutex.release()
 
     def _clear_tasks(self, ready=True):
         if ready:
@@ -192,11 +189,8 @@ class State(object):
         self.task_count = 0
 
     def clear(self, ready=True):
-        self._mutex.acquire()
-        try:
+        with self._mutex:
             return self._clear(ready)
-        finally:
-            self._mutex.release()
 
     def get_or_create_worker(self, hostname, **kwargs):
         """Get or create worker by hostname."""
@@ -239,11 +233,8 @@ class State(object):
         task.worker = worker
 
     def event(self, event):
-        self._mutex.acquire()
-        try:
+        with self._mutex:
             return self._dispatch_event(event)
-        finally:
-            self._mutex.release()
 
     def _dispatch_event(self, event):
         self.event_count += 1
