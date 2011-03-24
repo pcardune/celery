@@ -81,13 +81,13 @@ class CacheBackend(KeyValueStoreBackend):
                                                 ", ".join(backends.keys())))
 
     def get(self, key):
-        return self.client.get(key)
+        return self.client.get(str(key))
 
     def set(self, key, value):
-        return self.client.set(key, value, self.expires)
+        return self.client.set(str(key), value, self.expires)
 
     def delete(self, key):
-        return self.client.delete(key)
+        return self.client.delete(str(key))
 
     @cached_property
     def client(self):
